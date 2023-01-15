@@ -1,0 +1,1 @@
+The files in this directory prefixed with ble may require modification of the ArduinoBLE library. Information about will be in comments at the top of the sketch. The code is written to be focused so that it can easily be intergrated into other code bases.
