@@ -19,7 +19,7 @@
 #include <utility/HCI.h>
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(921600);
   while (!Serial);
 
   // begin initialization
@@ -36,14 +36,14 @@ void setup() {
 }
 
 // if the number is 0 then it will send an unlimited amount
-#define TOTAL_PACKETS_TO_SEND 10
+#define TOTAL_PACKETS_TO_SEND 200
 
 void loop() {
 
   //This is the Arduino BD Address: 58:bf:25:9c:50:7e
   //uint8_t centralAddress[6]={0x7e, 0x50, 0x9c, 0x25, 0xbf, 0x58 };
   
-  //uint8_t peripheralAddressType=0;
+  uint8_t peripheralAddressType=0;
   // this is the Bluetooth address of the device you wish to connect to.
   //	BD Address: 00:e0:42:ab:3d:03
   uint8_t peripheralAddress[6]={0x03, 0x3D, 0xAB, 0x42, 0xE0, 0x00 };
@@ -56,7 +56,7 @@ void loop() {
   BLEDevice peripheral = BLE.available();
 
   if (peripheral) {
-    if (peripheral.hasAddress(peripheralAddress,peripheralAddress)) {      
+    if (peripheral.hasAddress(peripheralAddressType,peripheralAddress)) {  
       Serial.print("Found our device: ");
       Serial.print(peripheral.address());
       Serial.print(" '");
@@ -72,6 +72,23 @@ void loop() {
         Serial.println("Failed to connect!");
         return;
       }
+
+      /* Wait a few seconds for the peripheral to ask for any GATT information such as:
+      ATT_EXCHANGE_MTU_REQ
+      ATT_READ_BY_TYPE_REQ
+      ATT_READ_BY_GROUP_TYPE_REQ
+      ATT_WRITE_REQ
+      ATT_READ_REQ
+      */
+      unsigned long startTime=millis();
+      unsigned long currentTime=startTime;
+      Serial.println("===Wait start===");
+      while((currentTime-startTime) < 3000)
+      {     
+        BLE.poll();
+        currentTime=millis();
+      }
+      Serial.println("===Wait end===");
 
 /* Handle info
 0xXXXX The Handle for the connection for which the RSSI is to be read.
@@ -108,13 +125,29 @@ was successful.
       #define HCI_PARM_START_IDX 3 
       #define HCI_LENGTH_BYTE_IDX 2 
 
+/* HCI_LE_Set_Data_Length 0x0022 Ref: BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E page 2415
+For the LE Controller commands, the OGF code is defined as 0x08.
+
+HCI_LE_Set_Data_Length OCF+OGF<<2: 0x2022
+|  
+|     Length: 6 octets
+|     |  Connection_Handle: 0x0000
+|     |  |     TX_Octets: 251 (0xFB) Preferred maximum number of payload octets that the local Controller should include in a single LL Data PDU on this connection.
+|     |  |     |     TX_Time: 2,120 microseconds (0x0848). Preferred maximum number of microseconds that the local Controller should use to transmit a single Link Layer packet containing an LL Data PDU on this connection.
+|     |  |     |     | 
+|     |  |     |     | 
+|     |  |     |     | 
+|     |  |     |     | 
+22 20 06 00 00 FB 00 48 08
+*/
+
       uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
       
       int hci_send_buffer_free_index=sizeof(hci_send_buffer);
       uint16_t opcode=(hci_send_buffer[1]<<8 | hci_send_buffer[0]);
-      uint8_t packetLength = hci_send_buffer_free_index - HCI_PARM_START_IDX;
-      int result = HCI.sendCommand(opcode, packetLength, &hci_send_buffer[HCI_PARM_START_IDX]);
-    
+      uint8_t hciPacketLength = hci_send_buffer_free_index - HCI_PARM_START_IDX;
+      int result = HCI.sendCommand(opcode, hciPacketLength, &hci_send_buffer[HCI_PARM_START_IDX]);
+      BLE.poll();
       Serial.println("Sending data packets");
 
       //0x00-0x15 is what worked before
@@ -123,7 +156,17 @@ was successful.
                             0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x2a,0x2b,0x2c,0x2d,0x2e,0x2f,
                             0x30,0x31,0x32,0x33,0x34,0x35,0x36,0x37,0x38,0x39,0x3a,0x3b,0x3c,0x3d,0x3e,0x3f,
                             0x40,0x41,0x42,0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4a,0x4b,0x4c,0x4d,0x4e,0x4f,
-                            0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5a,0x5b,0x5c,0x5d,0x5e,0x5f };                                                                                    
+                            0x50,0x51,0x52,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5a,0x5b,0x5c,0x5d,0x5e,0x5f,
+                            0x60,0x61,0x62,0x63,0x64,0x65,0x66,0x67,0x68,0x69,0x6a,0x6b,0x6c,0x6d,0x6e,0x6f,
+                            0x70,0x71,0x72,0x73,0x74,0x75,0x76,0x77,0x78,0x79,0x7a,0x7b,0x7c,0x7d,0x7e,0x7f,
+                            0x80,0x81,0x82,0x83,0x84,0x85,0x86,0x87,0x88,0x89,0x8a,0x8b,0x8c,0x8d,0x8e,0x8f,
+                            0x90,0x91,0x92,0x93,0x94,0x95,0x96,0x97,0x98,0x99,0x9a,0x9b,0x9c,0x9d,0x9e,0x9f,
+                            0xA0,0xA1,0xA2,0xA3,0xA4,0xA5,0xA6,0xA7,0xA8,0xA9,0xAa,0xAb,0xAc,0xAd,0xAe,0xAf,
+                            0xB0,0xB1,0xB2,0xB3,0xB4,0xB5,0xB6,0xB7,0xB8,0xB9,0xBa,0xBb,0xBc,0xBd,0xBe,0xBf,
+                            0xC0,0xC1,0xC2,0xC3,0xC4,0xC5,0xC6,0xC7,0xC8,0xC9,0xCa,0xCb,0xCc,0xCd,0xCe,0xCf,
+                            0xD0,0xD1,0xD2,0xD3,0xD4,0xD5,0xD6,0xD7,0xD8,0xD9,0xDa,0xDb,0xDc,0xDd,0xDe,0xDf,
+                            0xE0,0xE1,0xE2,0xE3,0xE4,0xE5,0xE6,0xE7,0xE8,0xE9,0xEa,0xEb,0xEc,0xEd,0xEe,0xEf,                         
+                             };                                                                                    
       uint8_t packetLength=sizeof(packetData);
       uint8_t packetsSent=0;
       while (packetsSent < TOTAL_PACKETS_TO_SEND) {
@@ -134,12 +177,10 @@ was successful.
         for(int i=0; i<packetLength; i++)
         {
           packetData[i]=packetData[i]+1;
-        }
-
+        }        
+        HCI.sendAclPkt(connectionHandle, cid, packetLength, packetData);        
         BLE.poll();
-        HCI.sendAclPkt(connectionHandle, cid, packetLength, packetData);
 
-          //HCI.sendAclPkt_debug(connectionHandle, cid, packetLength, packetData);
         packetsSent++;
       }
 
