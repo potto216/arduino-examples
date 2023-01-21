@@ -116,11 +116,11 @@ was successful.
 
 */
 
-    uint16_t connectionHandle=HCI.connection_handle;
+    uint16_t connectionHandle=HCI.connectionHandle;
     uint8_t cid=0x78;
 
-    Serial.print("HCI.connection_handle:");
-    Serial.println(HCI.connection_handle);
+    Serial.print("HCI.connectionHandle:");
+    Serial.println(HCI.connectionHandle);
 
       #define HCI_PARM_START_IDX 3 
       #define HCI_LENGTH_BYTE_IDX 2 
