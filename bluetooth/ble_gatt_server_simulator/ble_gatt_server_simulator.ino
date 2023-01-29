@@ -56,7 +56,9 @@ BLEByteCharacteristic Ramp02StepTime("b5720d32-9514-11ed-985d-7300cdba6b06", BLE
 
 void setup() {
 Serial.begin(115200);
-while (!Serial);
+
+// If running off battery without the USB cable connected the following line should be commented out
+while (!Serial);  
 
 pinMode(LED_BUILTIN, OUTPUT);
 if (!BLE.begin()) 
@@ -90,7 +92,10 @@ BLE.setAdvertisedService(Ramp01ServiceByte);
 GAP.setAdvertisingInterval(1600);
 
 BLE.advertise();
-Serial.println("Bluetooth device active, waiting for connections...");
+Serial.print("Bluetooth device ");
+Serial.print(BLE.address());
+Serial.println(" advertising and waiting for connections...");
+
 }
 
 void loop() 
