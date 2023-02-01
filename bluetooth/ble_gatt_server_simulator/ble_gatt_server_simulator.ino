@@ -81,10 +81,10 @@ BLE.addService(Ramp01ServiceByte);
 Ramp02ServiceByte.addCharacteristic(Ramp02MinimumValue);
 Ramp02ServiceByte.addCharacteristic(Ramp02MaximumValue);
 Ramp02ServiceByte.addCharacteristic(Ramp02CurrentValue);
-Ramp01ServiceByte.addCharacteristic(Ramp02Command);
-Ramp01ServiceByte.addCharacteristic(Ramp02CommandStatus);
-Ramp01ServiceByte.addCharacteristic(Ramp02Status);
-Ramp01ServiceByte.addCharacteristic(Ramp02StepTime);
+Ramp02ServiceByte.addCharacteristic(Ramp02Command);
+Ramp02ServiceByte.addCharacteristic(Ramp02CommandStatus);
+Ramp02ServiceByte.addCharacteristic(Ramp02Status);
+Ramp02ServiceByte.addCharacteristic(Ramp02StepTime);
 BLE.addService(Ramp02ServiceByte);
 
 BLE.setAdvertisedService(Ramp01ServiceByte);
