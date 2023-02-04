@@ -63,8 +63,8 @@ while (!Serial);
 pinMode(LED_BUILTIN, OUTPUT);
 if (!BLE.begin()) 
 {
-Serial.println("starting BLE failed!");
-while (1);
+  Serial.println("starting BLE failed!");
+  while (1);
 }
 
 BLE.setLocalName("GATT_Server");
@@ -104,82 +104,73 @@ BLEDevice central = BLE.central();
 
 if (central) 
 {
-Serial.print("Connected to central: ");
-Serial.println(central.address());
+  Serial.print("Connected to central: ");
+  Serial.println(central.address());
 
-Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_NONE_RECEIVED);
-Ramp01MinimumValue.writeValue(1);
-Ramp01MaximumValue.writeValue(253);
-Ramp01CurrentValue.writeValue(Ramp01MinimumValue.value());
-Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
-Ramp01StepTime.writeValue(1);
+  Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_NONE_RECEIVED);
+  Ramp01MinimumValue.writeValue(1);
+  Ramp01MaximumValue.writeValue(253);
+  Ramp01CurrentValue.writeValue(Ramp01MinimumValue.value());
+  Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
+  Ramp01StepTime.writeValue(1);
 
-
-const byte RAMP_COMMAND_RESULT_SUCCESS = 0;
-const byte RAMP_COMMAND_RESULT_NONE_RECEIVED = 1;
-const byte RAMP_COMMAND_RESULT_ERROR = 2;
-
-const byte RAMP_STATUS_STOPPED = 0;
-const byte RAMP_STATUS_RUNNING = 1;
-
-PinStatus ledState=HIGH;
-digitalWrite(LED_BUILTIN, ledState);
-while (central.connected()) {
-     
-      if (Ramp01Command.written())
+  PinStatus ledState=HIGH;
+  digitalWrite(LED_BUILTIN, ledState);
+  while (central.connected()) 
+  {   
+    if (Ramp01Command.written())
+    {
+      byte command = Ramp01Command.value();
+      switch(command)
       {
-        byte command = Ramp01Command.value();
-        switch(command)
-        {
-          case RAMP_COMMAND_STOP:
-          Serial.println("RAMP_COMMAND_STOP received.");
-            Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
-            Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
-            break;
+        case RAMP_COMMAND_STOP:
+        Serial.println("RAMP_COMMAND_STOP received.");
+          Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
+          Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
+          break;
 
-          case RAMP_COMMAND_START:
-          Serial.println("RAMP_COMMAND_START received.");
-            Ramp01Status.writeValue(RAMP_STATUS_RUNNING);
-            Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
-            break;
+        case RAMP_COMMAND_START:
+        Serial.println("RAMP_COMMAND_START received.");
+          Ramp01Status.writeValue(RAMP_STATUS_RUNNING);
+          Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
+          break;
 
-          case RAMP_COMMAND_RESET:
-            Serial.println("RAMP_COMMAND_RESET received.");
-            Ramp01MinimumValue.writeValue(1);
-            Ramp01MaximumValue.writeValue(253);
-            Ramp01CurrentValue.writeValue(Ramp01MinimumValue.value());
-            Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
-            Ramp01StepTime.writeValue(1);
-            Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
-            break;
-
-          default:
-            Serial.print("Unsupported command received of 0x");
-            Serial.println(command, HEX);
-            Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_ERROR);
-
-        }
-
-      }
-
-
-      if (Ramp01Status.value() == RAMP_STATUS_RUNNING )
-      {
-        Serial.print("Ramp01 value is ");
-        Serial.println(Ramp01CurrentValue.value());
-        delay(Ramp01StepTime.value()*1000); 
-        if(Ramp01CurrentValue.value()>=Ramp01MaximumValue.value())
-        {
+        case RAMP_COMMAND_RESET:
+          Serial.println("RAMP_COMMAND_RESET received.");
+          Ramp01MinimumValue.writeValue(1);
+          Ramp01MaximumValue.writeValue(253);
           Ramp01CurrentValue.writeValue(Ramp01MinimumValue.value());
-        }
-        else
-        {
-          Ramp01CurrentValue.writeValue(Ramp01CurrentValue.value()+1);
-        } 
-        ledState= (ledState==HIGH) ? LOW : HIGH;       
-        digitalWrite(LED_BUILTIN, ledState);
+          Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
+          Ramp01StepTime.writeValue(1);
+          Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
+          break;
+
+        default:
+          Serial.print("Unsupported command received of 0x");
+          Serial.println(command, HEX);
+          Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_ERROR);
 
       }
+
+    }
+
+    if (Ramp01Status.value() == RAMP_STATUS_RUNNING )
+    {
+      Serial.print("Ramp01 value is ");
+      Serial.println(Ramp01CurrentValue.value());
+      delay(Ramp01StepTime.value()*1000); 
+      if(Ramp01CurrentValue.value()>=Ramp01MaximumValue.value())
+      {
+        Ramp01CurrentValue.writeValue(Ramp01MinimumValue.value());
+      }
+      else
+      {
+        Ramp01CurrentValue.writeValue(Ramp01CurrentValue.value()+1);
+      } 
+      ledState= (ledState==HIGH) ? LOW : HIGH;       
+      digitalWrite(LED_BUILTIN, ledState);
+
+    }
   }
 }
 digitalWrite(LED_BUILTIN, LOW);
