@@ -90,31 +90,31 @@ void loop() {
       }
       Serial.println("===Wait end===");
 
-/* Handle info
-0xXXXX The Handle for the connection for which the RSSI is to be read.
-The Handle is a Connection_Handle for an ACL-U or LE-U connection.
-Range: 0x0000 to 0x0EFF
-HCI_Read_RSSI
+    /* Handle info
+    0xXXXX The Handle for the connection for which the RSSI is to be read.
+    The Handle is a Connection_Handle for an ACL-U or LE-U connection.
+    Range: 0x0000 to 0x0EFF
+    HCI_Read_RSSI
 
-Event(s) generated (unless masked away):
-When the Controller receives the HCI_LE_Create_Connection command, the
-Controller sends the HCI_Command_Status event to the Host. An HCI_LE_-
-Connection_Complete or HCI_LE_Enhanced_Connection_Complete event
-shall be generated when a connection is created because of this command or
-the connection creation procedure is cancelled; until one of these events is
-generated, the command is considered pending. If a connection is created and
-the Controller supports the LE Channel Selection Algorithm #2 feature, this
-event shall be immediately followed by an HCI_LE_Channel_Selection_-
-Algorithm event.
+    Event(s) generated (unless masked away):
+    When the Controller receives the HCI_LE_Create_Connection command, the
+    Controller sends the HCI_Command_Status event to the Host. An HCI_LE_-
+    Connection_Complete or HCI_LE_Enhanced_Connection_Complete event
+    shall be generated when a connection is created because of this command or
+    the connection creation procedure is cancelled; until one of these events is
+    generated, the command is considered pending. If a connection is created and
+    the Controller supports the LE Channel Selection Algorithm #2 feature, this
+    event shall be immediately followed by an HCI_LE_Channel_Selection_-
+    Algorithm event.
 
-The HCI_Connection_Complete event indicates to both of the Hosts forming
-the connection that a new connection has been established. This event also
-indicates to the Host which issued the HCI_Create_Connection, HCI_Accept_-
-Connection_Request, or HCI_Reject_Connection_Request command, and
-then received an HCI_Command_Status event, if the issued command failed or
-was successful.
+    The HCI_Connection_Complete event indicates to both of the Hosts forming
+    the connection that a new connection has been established. This event also
+    indicates to the Host which issued the HCI_Create_Connection, HCI_Accept_-
+    Connection_Request, or HCI_Reject_Connection_Request command, and
+    then received an HCI_Command_Status event, if the issued command failed or
+    was successful.
 
-*/
+    */
 
     uint16_t connectionHandle=HCI.connectionHandle;
     uint8_t cid=0x78;
@@ -125,21 +125,21 @@ was successful.
       #define HCI_PARM_START_IDX 3 
       #define HCI_LENGTH_BYTE_IDX 2 
 
-/* HCI_LE_Set_Data_Length 0x0022 Ref: BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E page 2415
-For the LE Controller commands, the OGF code is defined as 0x08.
+    /* HCI_LE_Set_Data_Length 0x0022 Ref: BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E page 2415
+    For the LE Controller commands, the OGF code is defined as 0x08.
 
-HCI_LE_Set_Data_Length OCF+OGF<<2: 0x2022
-|  
-|     Length: 6 octets
-|     |  Connection_Handle: 0x0000
-|     |  |     TX_Octets: 251 (0xFB) Preferred maximum number of payload octets that the local Controller should include in a single LL Data PDU on this connection.
-|     |  |     |     TX_Time: 2,120 microseconds (0x0848). Preferred maximum number of microseconds that the local Controller should use to transmit a single Link Layer packet containing an LL Data PDU on this connection.
-|     |  |     |     | 
-|     |  |     |     | 
-|     |  |     |     | 
-|     |  |     |     | 
-22 20 06 00 00 FB 00 48 08
-*/
+    HCI_LE_Set_Data_Length OCF+OGF<<2: 0x2022
+    |  
+    |     Length: 6 octets
+    |     |  Connection_Handle: 0x0000
+    |     |  |     TX_Octets: 251 (0xFB) Preferred maximum number of payload octets that the local Controller should include in a single LL Data PDU on this connection.
+    |     |  |     |     TX_Time: 2,120 microseconds (0x0848). Preferred maximum number of microseconds that the local Controller should use to transmit a single Link Layer packet containing an LL Data PDU on this connection.
+    |     |  |     |     | 
+    |     |  |     |     | 
+    |     |  |     |     | 
+    |     |  |     |     | 
+    22 20 06 00 00 FB 00 48 08
+    */
 
       uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
       
