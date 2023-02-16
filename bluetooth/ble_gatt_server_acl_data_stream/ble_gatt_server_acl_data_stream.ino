@@ -119,6 +119,18 @@ uint8_t packetData[]={0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0
                       0xE0,0xE1,0xE2,0xE3,0xE4,0xE5,0xE6,0xE7,0xE8,0xE9,0xEa,0xEb,0xEc,0xEd,0xEe,0xEf,                         
                         };
 uint16_t packetDataArraySize=sizeof(packetData);
+//                   index    0     1     2     3     4     5     6     7     8
+uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
+const uint8_t TX_OCTETS_IDX_LSB = 5;
+const uint8_t TX_OCTETS_IDX_MSB = 6;
+const uint8_t TX_TIME_IDX_LSB   = 7;
+const uint8_t TX_TIME_IDX_MSB   = 8;
+
+const int hci_send_buffer_free_index=sizeof(hci_send_buffer);
+const uint16_t opcode=(hci_send_buffer[1]<<8 | hci_send_buffer[0]);
+const uint8_t hciPacketLength = hci_send_buffer_free_index - HCI_PARM_START_IDX;
+int result;
+
 
 if (central) 
 {  
@@ -182,12 +194,15 @@ if (central)
           |     |  |     |     | 
           22 20 06 00 00 FB 00 48 08
           ********************************************************/
-          //uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
-          uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, (TX_Octets && 0xFF), ((TX_Octets>>8) && 0xFF), (TX_Time && 0xFF), ((TX_Time>>8) && 0xFF)};
-          int hci_send_buffer_free_index=sizeof(hci_send_buffer);
-          uint16_t opcode=(hci_send_buffer[1]<<8 | hci_send_buffer[0]);
-          uint8_t hciPacketLength = hci_send_buffer_free_index - HCI_PARM_START_IDX;
-          int result = HCI.sendCommand(opcode, hciPacketLength, &hci_send_buffer[HCI_PARM_START_IDX]);
+          //                     index   0      1     2     3     4     5     6     7     8
+          // uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
+
+          hci_send_buffer[TX_OCTETS_IDX_LSB] = (TX_Octets && 0xFF);
+          hci_send_buffer[TX_OCTETS_IDX_MSB] = ((TX_Octets>>8) && 0xFF);
+          hci_send_buffer[TX_TIME_IDX_LSB]   = (TX_Time && 0xFF);
+          hci_send_buffer[TX_TIME_IDX_MSB]   = ((TX_Time>>8) && 0xFF);
+          
+          result = HCI.sendCommand(opcode, hciPacketLength, &hci_send_buffer[HCI_PARM_START_IDX]);
           BLE.poll();
 
           Serial.println("Sending data packets");
@@ -225,7 +240,6 @@ if (central)
 
     if (AclStreamStatus.value() == STREAM_STATUS_RUNNING )
     {
-      Serial.print("Ramp01 value is ");
       if (totalPacketsSent==SEND_PACKETS_FOREVER || totalPacketsSent<totalPacketsToSend)
       {
 
@@ -238,10 +252,17 @@ if (central)
         BLE.poll();
 
         totalPacketsSent++;
+        AclStreamTotalPacketsSent.writeValue(totalPacketsSent);
       }
 
 
     }
+
+  BLE.setAdvertisedService(AclStreamService);
+  // 1600*0.625 msec = 1 sec
+  GAP.setAdvertisingInterval(1600);
+
+  BLE.advertise();
   }
 }
 digitalWrite(LED_BUILTIN, LOW);
