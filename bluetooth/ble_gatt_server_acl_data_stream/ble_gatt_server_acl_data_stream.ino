@@ -140,8 +140,8 @@ if (central)
 
   uint16_t connectionHandle=HCI.connectionHandle;
   uint8_t cid=DEFAULT_CID;
-  uint64_t totalPacketsToSend=0;
-  uint64_t totalPacketsSent=0;
+  uint32_t totalPacketsToSend=0;
+  uint32_t totalPacketsSent=0;
   uint16_t TX_Octets=0;
   uint16_t TX_Time=0;  
 
