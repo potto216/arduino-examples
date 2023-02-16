@@ -39,10 +39,10 @@ static constexpr byte RAMP_STATUS_RUNNING = 1;
 BLEByteCharacteristic Ramp01MinimumValue("b5720d32-9514-11ed-985d-7300cdba6b00", BLERead | BLEWrite);
 BLEByteCharacteristic Ramp01MaximumValue("b5720d32-9514-11ed-985d-7300cdba6b01", BLERead | BLEWrite);
 BLEByteCharacteristic Ramp01CurrentValue("b5720d32-9514-11ed-985d-7300cdba6b02", BLERead );
-BLEByteCharacteristic Ramp01Command("b5720d32-9514-11ed-985d-7300cdba6b03", BLEWrite);
-BLEByteCharacteristic Ramp01CommandStatus("b5720d32-9514-11ed-985d-7300cdba6b04", BLERead | BLENotify );
-BLEByteCharacteristic Ramp01Status("b5720d32-9514-11ed-985d-7300cdba6b05", BLERead | BLENotify );
-BLEByteCharacteristic Ramp01StepTime("b5720d32-9514-11ed-985d-7300cdba6b06", BLERead | BLEWrite );
+BLEByteCharacteristic AclStreamCommand("b5720d32-9514-11ed-985d-7300cdba6b03", BLEWrite);
+BLEByteCharacteristic AclStreamCommandStatus("b5720d32-9514-11ed-985d-7300cdba6b04", BLERead | BLENotify );
+BLEByteCharacteristic AclStreamStatus("b5720d32-9514-11ed-985d-7300cdba6b05", BLERead | BLENotify );
+BLEByteCharacteristic AclStreamStepTime("b5720d32-9514-11ed-985d-7300cdba6b06", BLERead | BLEWrite );
 
 
 BLEByteCharacteristic Ramp02MinimumValue("b5720d32-9514-11ed-985d-7300cdba6b00", BLERead | BLEWrite);
@@ -72,10 +72,10 @@ BLE.setLocalName("GATT_Server");
 Ramp01ServiceByte.addCharacteristic(Ramp01MinimumValue);
 Ramp01ServiceByte.addCharacteristic(Ramp01MaximumValue);
 Ramp01ServiceByte.addCharacteristic(Ramp01CurrentValue);
-Ramp01ServiceByte.addCharacteristic(Ramp01Command);
-Ramp01ServiceByte.addCharacteristic(Ramp01CommandStatus);
-Ramp01ServiceByte.addCharacteristic(Ramp01Status);
-Ramp01ServiceByte.addCharacteristic(Ramp01StepTime);
+Ramp01ServiceByte.addCharacteristic(AclStreamCommand);
+Ramp01ServiceByte.addCharacteristic(AclStreamCommandStatus);
+Ramp01ServiceByte.addCharacteristic(AclStreamStatus);
+Ramp01ServiceByte.addCharacteristic(AclStreamStepTime);
 BLE.addService(Ramp01ServiceByte);
 
 Ramp02ServiceByte.addCharacteristic(Ramp02MinimumValue);
@@ -107,32 +107,32 @@ if (central)
   Serial.print("Connected to central: ");
   Serial.println(central.address());
 
-  Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_NONE_RECEIVED);
+  AclStreamCommandStatus.writeValue(RAMP_COMMAND_RESULT_NONE_RECEIVED);
   Ramp01MinimumValue.writeValue(1);
   Ramp01MaximumValue.writeValue(253);
   Ramp01CurrentValue.writeValue(Ramp01MinimumValue.value());
-  Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
-  Ramp01StepTime.writeValue(1);
+  AclStreamStatus.writeValue(RAMP_STATUS_STOPPED);
+  AclStreamStepTime.writeValue(1);
 
   PinStatus ledState=HIGH;
   digitalWrite(LED_BUILTIN, ledState);
   while (central.connected()) 
   {   
-    if (Ramp01Command.written())
+    if (AclStreamCommand.written())
     {
-      byte command = Ramp01Command.value();
+      byte command = AclStreamCommand.value();
       switch(command)
       {
         case RAMP_COMMAND_STOP:
         Serial.println("RAMP_COMMAND_STOP received.");
-          Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
-          Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
+          AclStreamStatus.writeValue(RAMP_STATUS_STOPPED);
+          AclStreamCommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
           break;
 
         case RAMP_COMMAND_START:
         Serial.println("RAMP_COMMAND_START received.");
-          Ramp01Status.writeValue(RAMP_STATUS_RUNNING);
-          Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
+          AclStreamStatus.writeValue(RAMP_STATUS_RUNNING);
+          AclStreamCommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
           break;
 
         case RAMP_COMMAND_RESET:
@@ -140,25 +140,25 @@ if (central)
           Ramp01MinimumValue.writeValue(1);
           Ramp01MaximumValue.writeValue(253);
           Ramp01CurrentValue.writeValue(Ramp01MinimumValue.value());
-          Ramp01Status.writeValue(RAMP_STATUS_STOPPED);
-          Ramp01StepTime.writeValue(1);
-          Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
+          AclStreamStatus.writeValue(RAMP_STATUS_STOPPED);
+          AclStreamStepTime.writeValue(1);
+          AclStreamCommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
           break;
 
         default:
           Serial.print("Unsupported command received of 0x");
           Serial.println(command, HEX);
-          Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_ERROR);
+          AclStreamCommandStatus.writeValue(RAMP_COMMAND_RESULT_ERROR);
 
       }
 
     }
 
-    if (Ramp01Status.value() == RAMP_STATUS_RUNNING )
+    if (AclStreamStatus.value() == RAMP_STATUS_RUNNING )
     {
       Serial.print("Ramp01 value is ");
       Serial.println(Ramp01CurrentValue.value());
-      delay(Ramp01StepTime.value()*1000); 
+      delay(AclStreamStepTime.value()*1000); 
       if(Ramp01CurrentValue.value()>=Ramp01MaximumValue.value())
       {
         Ramp01CurrentValue.writeValue(Ramp01MinimumValue.value());
