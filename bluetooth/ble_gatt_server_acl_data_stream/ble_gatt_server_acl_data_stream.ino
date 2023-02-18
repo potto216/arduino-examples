@@ -36,8 +36,8 @@ static constexpr byte STREAM_STATUS_RUNNING = 1;
 static constexpr byte SEND_PACKETS_FOREVER = 0;
 static constexpr byte DEFAULT_CID = 0x78;
 
-static constexpr uint8_t  DEFAULT_TX_OCTETS =  251; // (0xFB) maximum number of 251 payload octets
-static constexpr uint16_t DEFAULT_TX_TIME = 0x0848; // 2,120 microseconds
+static constexpr uint8_t  DEFAULT_TX_OCTETS =  0xFB; // (0xFB) maximum number of 251 payload octets Range 0x001B to 0x00FB
+static constexpr uint16_t DEFAULT_TX_TIME = 0x0848; // 2,120 microseconds Range 0x0148 to 0x4290
 
 static constexpr uint8_t  HCI_PARM_START_IDX = 3;
 static constexpr uint8_t HCI_LENGTH_BYTE_IDX = 2;
@@ -120,43 +120,90 @@ uint8_t packetData[]={0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0
                         };
 uint16_t packetDataArraySize=sizeof(packetData);
 //                   index    0     1     2     3     4     5     6     7     8
-uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
-const uint8_t TX_OCTETS_IDX_LSB = 5;
-const uint8_t TX_OCTETS_IDX_MSB = 6;
-const uint8_t TX_TIME_IDX_LSB   = 7;
-const uint8_t TX_TIME_IDX_MSB   = 8;
-
-const int hci_send_buffer_free_index=sizeof(hci_send_buffer);
-const uint16_t opcode=(hci_send_buffer[1]<<8 | hci_send_buffer[0]);
-const uint8_t hciPacketLength = hci_send_buffer_free_index - HCI_PARM_START_IDX;
-int result;
-
 
 if (central) 
 {  
   BLE.stopAdvertise();
   Serial.print("Connected to central: ");
-  Serial.println(central.address());
+  Serial.println(central.address());  
 
   uint16_t connectionHandle=HCI.connectionHandle;
   uint8_t cid=DEFAULT_CID;
-  uint32_t totalPacketsToSend=0;
+  uint32_t totalPacketsToSend=15;
   uint32_t totalPacketsSent=0;
-  uint16_t TX_Octets=0;
-  uint16_t TX_Time=0;  
+  uint16_t payloadActualSize=128;
 
   AclStreamCommandStatus.writeValue(STREAM_COMMAND_RESULT_NONE_RECEIVED); 
   AclStreamStatus.writeValue(STREAM_STATUS_STOPPED);
   AclStream_CID.writeValue(cid);
 
   AclStream_Connection_Handle.writeValue(connectionHandle);
-  AclStream_TX_Octets.writeValue(DEFAULT_TX_OCTETS);
+  AclStream_TX_Octets.writeValue(payloadActualSize);
   AclStream_TX_Time.writeValue(DEFAULT_TX_TIME);
   AclStreamTotalPacketsToSend.writeValue(totalPacketsToSend);
+  AclStreamTotalPacketsSent.writeValue(totalPacketsSent);
   AclStreamTotalPacketsSent.writeValue(totalPacketsSent);
 
   PinStatus ledState=HIGH;
   digitalWrite(LED_BUILTIN, ledState);
+
+  /**********************************************************
+  HCI_LE_Set_Data_Length 0x0022 Ref: BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E page 2415
+  For the LE Controller commands, the OGF code is defined as 0x08.
+
+  HCI_LE_Set_Data_Length OCF+OGF<<2: 0x2022
+  |  
+  |     Length: 6 octets
+  |     |  Connection_Handle: 0x0000
+  |     |  |     TX_Octets: 251 (0xFB) Preferred maximum number of payload octets that the local Controller should include in a single LL Data PDU on this connection.              
+  |     |  |     | Range 0x001B to 0x00FB
+  |     |  |     |     TX_Time: 2,120 microseconds (0x0848). Preferred maximum number of microseconds that the local Controller should use to transmit a single Link Layer packet containing an LL Data PDU on this connection.
+  |     |  |     |     | Range 0x0148 to 0x4290
+  |     |  |     |     | 
+  |     |  |     |     | 
+  |     |  |     |     | 
+  22 20 06 00 00 FB 00 48 08
+  ********************************************************/
+  //                     index   0      1     2     3     4     5     6     7     8
+  // uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
+  uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
+  const uint8_t TX_OCTETS_IDX_LSB = 5;
+  const uint8_t TX_OCTETS_IDX_MSB = 6;
+  const uint8_t TX_TIME_IDX_LSB   = 7;
+  const uint8_t TX_TIME_IDX_MSB   = 8;
+
+  const int hci_send_buffer_free_index=sizeof(hci_send_buffer);
+  const uint16_t opcode=(hci_send_buffer[1]<<8 | hci_send_buffer[0]);
+  const uint8_t hciPacketLength = hci_send_buffer_free_index - HCI_PARM_START_IDX;
+
+  uint16_t TX_Octets=DEFAULT_TX_OCTETS;
+  uint16_t TX_Time=DEFAULT_TX_TIME;  
+
+  Serial.print("TX_Octets = 0x");
+  Serial.println(TX_Octets,HEX);
+
+  Serial.print("TX_Time = 0x");
+  Serial.println(TX_Time, HEX);
+
+  hci_send_buffer[TX_OCTETS_IDX_LSB] = (TX_Octets & 0xFF);
+  hci_send_buffer[TX_OCTETS_IDX_MSB] = ((TX_Octets>>8) & 0xFF);
+  hci_send_buffer[TX_TIME_IDX_LSB]   = (TX_Time & 0xFF);
+  hci_send_buffer[TX_TIME_IDX_MSB]   = ((TX_Time>>8) & 0xFF);
+
+  int result;
+  // 2.18 INVALID HCI COMMAND PARAMETERS (0x12)
+  result = HCI.sendCommand(opcode, hciPacketLength, &hci_send_buffer[HCI_PARM_START_IDX]);
+//  Command tx ->  0x1 0x22 0x20 0x6 0x0 0x0 0x1 0x0 0x1 0x1
+//HCI event: E
+//E ncmd:   0x5
+//E opcode: 0x2022
+//E status: 0x12
+//
+
+  BLE.poll();
+
+
+
   while (central.connected())
   {   
     if (AclStreamCommand.written())
@@ -171,39 +218,15 @@ if (central)
           break;
 
         case STREAM_COMMAND_START:
+          totalPacketsToSend=0;
+          totalPacketsSent=0;  
           Serial.println("STREAM_COMMAND_START received.");
           totalPacketsToSend = AclStreamTotalPacketsToSend.value();
-          TX_Octets = AclStream_TX_Octets.value();
-          TX_Time = AclStream_TX_Time.value();
+          payloadActualSize = AclStream_TX_Octets.value();
           Serial.print("totalPacketsToSend = ");
           Serial.println(totalPacketsToSend);
-
-          /**********************************************************
-          HCI_LE_Set_Data_Length 0x0022 Ref: BLUETOOTH CORE SPECIFICATION Version 5.3 | Vol 4, Part E page 2415
-          For the LE Controller commands, the OGF code is defined as 0x08.
-
-          HCI_LE_Set_Data_Length OCF+OGF<<2: 0x2022
-          |  
-          |     Length: 6 octets
-          |     |  Connection_Handle: 0x0000
-          |     |  |     TX_Octets: 251 (0xFB) Preferred maximum number of payload octets that the local Controller should include in a single LL Data PDU on this connection.
-          |     |  |     |     TX_Time: 2,120 microseconds (0x0848). Preferred maximum number of microseconds that the local Controller should use to transmit a single Link Layer packet containing an LL Data PDU on this connection.
-          |     |  |     |     | 
-          |     |  |     |     | 
-          |     |  |     |     | 
-          |     |  |     |     | 
-          22 20 06 00 00 FB 00 48 08
-          ********************************************************/
-          //                     index   0      1     2     3     4     5     6     7     8
-          // uint8_t hci_send_buffer[]={0x22, 0x20, 0x06, 0x00, 0x00, 0xFB, 0x00, 0x48, 0x08};
-
-          hci_send_buffer[TX_OCTETS_IDX_LSB] = (TX_Octets && 0xFF);
-          hci_send_buffer[TX_OCTETS_IDX_MSB] = ((TX_Octets>>8) && 0xFF);
-          hci_send_buffer[TX_TIME_IDX_LSB]   = (TX_Time && 0xFF);
-          hci_send_buffer[TX_TIME_IDX_MSB]   = ((TX_Time>>8) && 0xFF);
-          
-          result = HCI.sendCommand(opcode, hciPacketLength, &hci_send_buffer[HCI_PARM_START_IDX]);
-          BLE.poll();
+          Serial.print("payloadActualSize = ");
+          Serial.println(payloadActualSize);          
 
           Serial.println("Sending data packets");
           AclStreamStatus.writeValue(STREAM_STATUS_RUNNING);
@@ -212,8 +235,8 @@ if (central)
 
         case STREAM_COMMAND_RESET:
           Serial.println("STREAM_COMMAND_RESET received.");
-          AclStream_TX_Octets.writeValue(DEFAULT_TX_OCTETS);
-          AclStream_TX_Time.writeValue(DEFAULT_TX_TIME);
+          //AclStream_TX_Octets.writeValue(DEFAULT_TX_OCTETS);
+          //AclStream_TX_Time.writeValue(DEFAULT_TX_TIME);
           totalPacketsToSend=0;
           totalPacketsSent=0;  
 
@@ -233,7 +256,6 @@ if (central)
           Serial.print("Unsupported command received of 0x");
           Serial.println(command, HEX);
           AclStreamCommandStatus.writeValue(STREAM_COMMAND_RESULT_ERROR);
-
       }
 
     }
@@ -248,22 +270,33 @@ if (central)
         {
           packetData[ii]=packetData[ii]+1;
         }        
-        HCI.sendAclPkt(connectionHandle, cid, TX_Octets, packetData);        
+        BLE.poll();
+        HCI.sendAclPkt(connectionHandle, cid, payloadActualSize, packetData);        
         BLE.poll();
 
         totalPacketsSent++;
+        Serial.print("!");
         AclStreamTotalPacketsSent.writeValue(totalPacketsSent);
       }
-
+    }
+    else
+    {      
+      BLE.poll();
+      Serial.print("*");
 
     }
 
+
+  BLE.poll();
+  }
+
+  Serial.print("Connection dropped. Starting advertising.");
   BLE.setAdvertisedService(AclStreamService);
   // 1600*0.625 msec = 1 sec
   GAP.setAdvertisingInterval(1600);
 
   BLE.advertise();
-  }
+
 }
 digitalWrite(LED_BUILTIN, LOW);
 //Serial.print("Disconnected from central: ");
