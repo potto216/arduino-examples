@@ -19,6 +19,52 @@
 #include <utility/GAP.h>
 #include <utility/HCI.h>
 
+
+/* Cheat sheet for using the device with bluetoothctl in Linux. 
+!!Make sure the GATT Database handles such as /org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char000b
+are correct since they may change.
+
+Command             ("5138f1ac-bf01-42fc-a321-09afd4de6e01", BLEWrite);
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char000b
+STREAM_COMMAND_STOP = 0;
+STREAM_COMMAND_START = 1;
+STREAM_COMMAND_RESET = 2;
+
+
+Command Status      ("5138f1ac-bf01-42fc-a321-09afd4de6e02", BLERead | BLENotify );
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char000d
+
+Stream Status       ("5138f1ac-bf01-42fc-a321-09afd4de6e03", BLERead | BLENotify );
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char000b
+
+CID                 ("5138f1ac-bf01-42fc-a321-09afd4de6e05", BLERead);
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char0010
+
+
+Connection_Handle   ("5138f1ac-bf01-42fc-a321-09afd4de6e06", BLERead);
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char0012
+
+
+PayloadSize         ("5138f1ac-bf01-42fc-a321-09afd4de6e07", BLERead | BLEWrite);
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char0014
+
+TX_Octets           ("5138f1ac-bf01-42fc-a321-09afd4de6e08", BLERead);
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char0016
+
+TX_Time             ("5138f1ac-bf01-42fc-a321-09afd4de6e09", BLERead);
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char0018
+
+TotalPacketsToSend  ("5138f1ac-bf01-42fc-a321-09afd4de6e0a", BLERead | BLEWrite);
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char001a
+
+TotalPacketsSent    ("5138f1ac-bf01-42fc-a321-09afd4de6e0b", BLERead | BLEWrite);
+/org/bluez/hci0/dev_58_BF_25_9C_50_7E/service000a/char001c
+*/
+
+/* For debugging packets
+1. uncomment `#define _BLE_TRACE_` in src/utility/HCI.cpp
+*/
+
 // 3a2d2e61-e54f-4fc1-9dc4-15a532c18c00 reserved as a service of information about all AclStreamService
 BLEService AclStreamService("3a2d2e61-e54f-4fc1-9dc4-15a532c18c01");
 
@@ -38,6 +84,7 @@ static constexpr byte DEFAULT_CID = 0x78;
 
 static constexpr uint8_t  DEFAULT_TX_OCTETS =  0xFB; // (0xFB) maximum number of 251 payload octets Range 0x001B to 0x00FB
 static constexpr uint16_t DEFAULT_TX_TIME = 0x0848; // 2,120 microseconds Range 0x0148 to 0x4290
+static constexpr uint16_t DEFAULT_PAYLOAD_SIZE_OCTETS = 128;  // default size for transmitting a stream of data
 
 static constexpr uint8_t  HCI_PARM_START_IDX = 3;
 static constexpr uint8_t HCI_LENGTH_BYTE_IDX = 2;
@@ -50,14 +97,17 @@ BLEByteCharacteristic AclStreamStatus("5138f1ac-bf01-42fc-a321-09afd4de6e03", BL
 BLEByteCharacteristic AclStream_CID("5138f1ac-bf01-42fc-a321-09afd4de6e05", BLERead);
 BLEUnsignedShortCharacteristic AclStream_Connection_Handle("5138f1ac-bf01-42fc-a321-09afd4de6e06", BLERead);
 
+// Payload size (2 octets): the size of the payload in octets to transmit
+BLEUnsignedShortCharacteristic AclStreamPayloadSize("5138f1ac-bf01-42fc-a321-09afd4de6e07", BLERead | BLEWrite);
+
 // TX_Octets (2 octets): Preferred maximum number of payload octets that the local Controller should include in a single LL Data PDU on this connection. ex: 251 (0xFB) 
-BLEUnsignedShortCharacteristic AclStream_TX_Octets("5138f1ac-bf01-42fc-a321-09afd4de6e07", BLERead | BLEWrite);
+BLEUnsignedShortCharacteristic AclStream_TX_Octets("5138f1ac-bf01-42fc-a321-09afd4de6e08", BLERead);
 
 // TX_Time (2 octets): Preferred maximum number of microseconds that the local Controller should use to transmit a single Link Layer packet containing an LL Data PDU on this connection. ex: 2,120 microseconds (0x0848). 
-BLEUnsignedShortCharacteristic AclStream_TX_Time("5138f1ac-bf01-42fc-a321-09afd4de6e08", BLERead | BLEWrite);
+BLEUnsignedShortCharacteristic AclStream_TX_Time("5138f1ac-bf01-42fc-a321-09afd4de6e09", BLERead);
 
-BLEUnsignedLongCharacteristic AclStreamTotalPacketsToSend("5138f1ac-bf01-42fc-a321-09afd4de6e09", BLERead | BLEWrite);
-BLEUnsignedLongCharacteristic AclStreamTotalPacketsSent("5138f1ac-bf01-42fc-a321-09afd4de6e0a", BLERead | BLEWrite);
+BLEUnsignedLongCharacteristic AclStreamTotalPacketsToSend("5138f1ac-bf01-42fc-a321-09afd4de6e0a", BLERead | BLEWrite);
+BLEUnsignedLongCharacteristic AclStreamTotalPacketsSent("5138f1ac-bf01-42fc-a321-09afd4de6e0b", BLERead | BLEWrite);
 
 void setup() {
 Serial.begin(115200);
@@ -78,11 +128,11 @@ AclStreamService.addCharacteristic(AclStreamCommand);
 AclStreamService.addCharacteristic(AclStreamCommandStatus);
 AclStreamService.addCharacteristic(AclStream_CID);
 AclStreamService.addCharacteristic(AclStream_Connection_Handle);
+AclStreamService.addCharacteristic(AclStreamPayloadSize);
 AclStreamService.addCharacteristic(AclStream_TX_Octets);
 AclStreamService.addCharacteristic(AclStream_TX_Time);
 AclStreamService.addCharacteristic(AclStreamTotalPacketsToSend);
 AclStreamService.addCharacteristic(AclStreamTotalPacketsSent);
-
 
 BLE.addService(AclStreamService);
 
@@ -118,7 +168,7 @@ uint8_t packetData[]={0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0
                       0xD0,0xD1,0xD2,0xD3,0xD4,0xD5,0xD6,0xD7,0xD8,0xD9,0xDa,0xDb,0xDc,0xDd,0xDe,0xDf,
                       0xE0,0xE1,0xE2,0xE3,0xE4,0xE5,0xE6,0xE7,0xE8,0xE9,0xEa,0xEb,0xEc,0xEd,0xEe,0xEf,                         
                         };
-uint16_t packetDataArraySize=sizeof(packetData);
+const uint16_t packetDataArraySize=sizeof(packetData);
 //                   index    0     1     2     3     4     5     6     7     8
 
 if (central) 
@@ -131,18 +181,21 @@ if (central)
   uint8_t cid=DEFAULT_CID;
   uint32_t totalPacketsToSend=15;
   uint32_t totalPacketsSent=0;
-  uint16_t payloadActualSize=128;
+  uint16_t payloadSize=DEFAULT_PAYLOAD_SIZE_OCTETS;
+  uint16_t TX_Octets=DEFAULT_TX_OCTETS;
+  uint16_t TX_Time=DEFAULT_TX_TIME;
 
   AclStreamCommandStatus.writeValue(STREAM_COMMAND_RESULT_NONE_RECEIVED); 
   AclStreamStatus.writeValue(STREAM_STATUS_STOPPED);
   AclStream_CID.writeValue(cid);
 
   AclStream_Connection_Handle.writeValue(connectionHandle);
-  AclStream_TX_Octets.writeValue(payloadActualSize);
-  AclStream_TX_Time.writeValue(DEFAULT_TX_TIME);
+  AclStreamPayloadSize.writeValue(payloadSize);
+  AclStream_TX_Octets.writeValue(TX_Octets);
+  AclStream_TX_Time.writeValue(TX_Time);
   AclStreamTotalPacketsToSend.writeValue(totalPacketsToSend);
   AclStreamTotalPacketsSent.writeValue(totalPacketsSent);
-  AclStreamTotalPacketsSent.writeValue(totalPacketsSent);
+  
 
   PinStatus ledState=HIGH;
   digitalWrite(LED_BUILTIN, ledState);
@@ -176,9 +229,6 @@ if (central)
   const uint16_t opcode=(hci_send_buffer[1]<<8 | hci_send_buffer[0]);
   const uint8_t hciPacketLength = hci_send_buffer_free_index - HCI_PARM_START_IDX;
 
-  uint16_t TX_Octets=DEFAULT_TX_OCTETS;
-  uint16_t TX_Time=DEFAULT_TX_TIME;  
-
   Serial.print("TX_Octets = 0x");
   Serial.println(TX_Octets,HEX);
 
@@ -193,6 +243,9 @@ if (central)
   int result;
   // 2.18 INVALID HCI COMMAND PARAMETERS (0x12)
   result = HCI.sendCommand(opcode, hciPacketLength, &hci_send_buffer[HCI_PARM_START_IDX]);
+  Serial.print("HCI.sendCommand HCI_LE_Set_Data_Length OCF+OGF<<2: 0x2022 result = 0x");
+  Serial.println(result, HEX);
+
 //  Command tx ->  0x1 0x22 0x20 0x6 0x0 0x0 0x1 0x0 0x1 0x1
 //HCI event: E
 //E ncmd:   0x5
@@ -201,8 +254,6 @@ if (central)
 //
 
   BLE.poll();
-
-
 
   while (central.connected())
   {   
@@ -222,11 +273,11 @@ if (central)
           totalPacketsSent=0;  
           Serial.println("STREAM_COMMAND_START received.");
           totalPacketsToSend = AclStreamTotalPacketsToSend.value();
-          payloadActualSize = AclStream_TX_Octets.value();
+          payloadSize = AclStreamPayloadSize.value();
           Serial.print("totalPacketsToSend = ");
           Serial.println(totalPacketsToSend);
           Serial.print("payloadActualSize = ");
-          Serial.println(payloadActualSize);          
+          Serial.println(payloadSize);          
 
           Serial.println("Sending data packets");
           AclStreamStatus.writeValue(STREAM_STATUS_RUNNING);
@@ -271,19 +322,22 @@ if (central)
           packetData[ii]=packetData[ii]+1;
         }        
         BLE.poll();
-        HCI.sendAclPkt(connectionHandle, cid, payloadActualSize, packetData);        
+        HCI.sendAclPkt(connectionHandle, cid, payloadSize, packetData);        
         BLE.poll();
 
         totalPacketsSent++;
         Serial.print("!");
         AclStreamTotalPacketsSent.writeValue(totalPacketsSent);
       }
+      else if(totalPacketsSent!=SEND_PACKETS_FOREVER && totalPacketsSent>=totalPacketsToSend)
+      {
+        AclStreamStatus.writeValue(STREAM_STATUS_STOPPED);
+        Serial.print("Stream done");
+      }
     }
     else
     {      
-      BLE.poll();
-      Serial.print("*");
-
+      BLE.poll();      
     }
 
 
@@ -299,6 +353,4 @@ if (central)
 
 }
 digitalWrite(LED_BUILTIN, LOW);
-//Serial.print("Disconnected from central: ");
-//Serial.println(central.address());
 }
