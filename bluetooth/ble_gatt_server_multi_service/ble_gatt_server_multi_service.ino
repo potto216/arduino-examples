@@ -20,6 +20,7 @@ b3f8665e-9514-11ed-9f96-37eb16895c5e
 
 #include <ArduinoBLE.h>
 #include <utility/GAP.h>
+
 void do_nothing(void);
 //b3f8665e-9514-11ed-9f96-37eb16895c00 reserved as a service of information about all RampGenerator01ServiceU8
 BLEService Ramp01ServiceByte("b3f8665e-9514-11ed-9f96-37eb16895c01");
@@ -62,7 +63,7 @@ void setup() {
 Serial.begin(115200);
 
 // If running off battery without the USB cable connected the following line should be commented out
-//while (!Serial);  
+// while (!Serial);  
 
 pinMode(LED_BUILTIN, OUTPUT);
 
@@ -108,6 +109,7 @@ Serial.println(" advertising and waiting for connections...");
 
 void loop() 
 {
+
 BLEDevice central = BLE.central();
 
 if (central) 
@@ -154,7 +156,7 @@ if (central)
           break;
         
         case RAMP_COMMAND_TEST_IO:
-          Serial.println("RAMP_COMMAND_TEST received.");
+          Serial.println("RAMP_COMMAND_TEST_IO received.");
           Ramp01CommandStatus.writeValue(RAMP_COMMAND_RESULT_SUCCESS);
           digitalWrite(IO_TEST_PIN, HIGH);
           for(int ii=1; ii<1000; ii++)    {  do_nothing(); }
@@ -162,7 +164,8 @@ if (central)
           for(int ii=1; ii<1000; ii++)    { do_nothing();    }
           digitalWrite(IO_TEST_PIN, HIGH);
           for(int ii=1; ii<1000; ii++)    { do_nothing();    }
-          digitalWrite(IO_TEST_PIN, LOW);
+          digitalWrite(IO_TEST_PIN, LOW);          
+          break;
 
         default:
           Serial.print("Unsupported command received of 0x");
@@ -191,14 +194,21 @@ if (central)
 
     }
   }
-}
+BLE.advertise();
+Serial.println("Disconnected from central.");
+Serial.print("Bluetooth device ");
+Serial.print(BLE.address());
+Serial.println(" advertising and waiting for connections...");
 digitalWrite(LED_BUILTIN, LOW);
-//Serial.print("Disconnected from central: ");
-//Serial.println(central.address());
+
+}
+
 }
 
 
-void do_nothing(void)
+[[nodiscard]] void do_nothing(void)
 {
+    volatile int x = 42;
+    (void)x; // Suppress unused variable warning
 
 }
