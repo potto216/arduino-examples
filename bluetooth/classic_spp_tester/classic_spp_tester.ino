@@ -1,96 +1,208 @@
 /*
-  The purpose of this is to provide a way to configure various Bluetooth Classic devices that support send direct HCI commands to the Bluetooth module connected to the processor.
+  The purpose of this program is to demonstrate how the Arduino MKR WiFi 1010 can use the HC-05 Bluetooth Classic (BR/EDR) hardware module which supports SPP Bluetooth serial port protocol (RFCOMM)
+  to  transmit serial data over Bluetooth.
 
-  This has only been tested on the Arduino MKR WiFi 1010 using bluetooth LE commands.
+  The particular hardware module used is the HC-05 version 2.0-20100601
+  
+  This program allows the user to run the HC-05 in two operating modes:
+  1. Configuration mode: Configure the HC-05 with AT commands 
+  2. Serial data mode: Use the HC-05 to transfer serial data based on the configuration settings.
 
-  data sent at regular rate
-  data read at regular rate
-  data simulate
-  ACL channel control
-  See readme.md for examples. 
+  To select the HC-05 operating mode the user needs to start the MKR WiFi 1010 board with pin D0 acting as a logic input depending on if it is connected to a high or low output will choose the operating mode. For convenience pin D1 will output a logic low and pin D2 will output a logic high and Pin D0 can be connected to either to select the mode.  
+  The modes are selected by
+  1. Configuration mode: Connect pin D0 to a logic high such as pin D2 
+  2. Serial data mode: Connect pin D0 to a logic low such as pin D2 
 
-  This example code is in the public domain.
+  The selected mode will then choose the logic level on pin D3 which is a logic output and will be connected to the HC-05 EN input pin with the following modes
+  1. Configuration mode: pin D3 outputs a logic high to HC-05 EN
+  2. Serial data mode: pin D3 outputs a logic low to HC-05 EN
+
+  The hardware setup is to connect the HC-05 to the MKR WiFi 1010 board with the following pinout is:
+  MKR-WiFi-1010       HC-05 
+  5V           ->     5V   
+  GND          ->     GND
+  TX (Pin 14)  ->     RXD (input)
+  RX (Pin 13)  <-     TXD (output)
+  D3           ->     EN (input)
+
+The MKR WiFi 1010 USB serial port which uses the Serial object will be configured for 115200 and allow the user to type AT commands in configuration mode and receive output from the HC-05 and receive log messages about the program operation when in serial data mode.
+
+The HC-05 uses the Serial1 object to communicate with the MKR WiFi 1010 board.
+
+Some details about the HC-05 board are:
+
+1. This is for the HC-05 with a firmware version 2.0-20100601. Other firmware versions may operate differently
+
+2. When the modules are powered up with the "EN" pin set to 3.3V or the button pressed they blink slowly (about once every 2 seconds) and can be configured with nonstandard AT commands. The speed is  always at 38400 baud. The device does not show up for pairing when in this mode.
+
+3. When the modules are powered up with the "EN" pin set to 0V or is left unconnected they blink quickly (about twice a second) and are available for pairing with a default name of HC-05 and a default baud rate of 9600 baud for data communication.
+
+4. To switch between the configuration mode and data communication mode requires cycling power on the device.
+
+5. In configuration mode all commands are followed by a carriage return character (ASCII 13) followed by a newline character (ASCII 10).
+
+
+In Serial data mode the program monitors the serial line for the following text based commands and uses a switch statement to call the functions with the name. Valid names are:
+
+setControlPinLow
+setControlPinHigh
+help
+
+Use constants whenever possible for values like data rates etc. Add log statements about the program operation over the Serial object. The code below is a rough example which does not do everything correctly and needs to be completed and organized.
+
 */
 
-#define SPP_MODULE_CONFIGURE_BAUD_RATE
-#define SPP_MODULE_CONFIGURE_BAUD_RATE
+#define CONFIG_MODE_BAUD 38400  // Baud rate for HC-05 configuration mode
+#define DATA_MODE_BAUD 921600   // Baud rate for HC-05 data communication mode (the default is 9600)
 
-  //Serial1.begin(9600); // works for default connect comm
-  //Serial1.begin(38400); // works for default connect comm
+// Pin definitions
+#define MODE_SELECT_PIN 0             // Selecting the operating mode
+#define DATA_MODE_INDICATOR_PIN 1     // as an output for logic low
+#define CONFIG_MODE_INDICATOR_PIN 2   // as an output for logic high
+#define HC_05_EN_PIN 3                // Connect to HC-05 EN pin
+#define CONTROL_PIN 4                 // Used to demonstrate control over the serial port
 
+#define CONFIG_MODE_VALUE HIGH
+#define DATA_MODE_VALUE LOW
+
+int mode = DATA_MODE_VALUE; // data is the default mode
+
+HardwareSerial& USBSerial = Serial;
+HardwareSerial& BluetoothSerial = Serial1;
 
 void setup() {
+  // Setup the HC-05
+  pinMode(CONFIG_MODE_INDICATOR_PIN, OUTPUT);
+  digitalWrite(CONFIG_MODE_INDICATOR_PIN, CONFIG_MODE_VALUE);
+
+  pinMode(DATA_MODE_INDICATOR_PIN, OUTPUT);  
+  digitalWrite(DATA_MODE_INDICATOR_PIN, DATA_MODE_VALUE); 
   
-  pinMode(0, OUTPUT);
-  digitalWrite(0, LOW); //If connected then High works to get data at 9600bps also the baud rate on the other system doesn't matter. When you are connected you can type whatever and it will show up either ned
+  pinMode(MODE_SELECT_PIN, INPUT);
+  mode = digitalRead(MODE_SELECT_PIN); 
 
-  //If connected then High works to get data at 9600bps also the baud rate on the other system doesn't matter. When you are connected you can type whatever and it will show up either ned
-  pinMode(1, OUTPUT);
-  digitalWrite(1, HIGH); 
+  pinMode(HC_05_EN_PIN, OUTPUT);
+  digitalWrite(HC_05_EN_PIN, mode == CONFIG_MODE_VALUE ? CONFIG_MODE_VALUE : DATA_MODE_VALUE);
 
+  pinMode(CONTROL_PIN, OUTPUT);
+  digitalWrite(CONTROL_PIN, LOW);
 
-  Serial.begin(230400);
-  Serial.print("Enter AT Commands:");
+  // Start USB serial communication
+  USBSerial.begin(115200);
   
+  // Comment this out if you will not be using the serial port otherwise the program will stall waiting for it.
+  while (!USBSerial); // Wait for serial port to connect
+ 
+  // Initialize BluetoothSerial based on selected mode
+  if (mode == CONFIG_MODE_VALUE) {
+    USBSerial.println("Verify the HC-05 module is blinking slow. If not you may need to manually cycle power on the HC-05 module to get it in configuration mode.");
+    USBSerial.println("Configuration Mode: Enter AT Commands.");    
+    BluetoothSerial.begin(CONFIG_MODE_BAUD); 
+    USBSerial.print("Baud rate for configuration: ");
+    USBSerial.println(CONFIG_MODE_BAUD);
+  } else {
+    USBSerial.println("Verify the HC-05 module is blinking fast and you have previously set the baud rate with the AT commands.");
+    USBSerial.println("Serial Data Mode: Ready for data communication.");
+    BluetoothSerial.begin(DATA_MODE_BAUD);
+    USBSerial.print("Baud rate for data communication: ");
+    USBSerial.println(DATA_MODE_BAUD);
 
-  Serial1.begin(921600); // works for default connect comm
+    USBSerial.println("Enter commands (setControlPinLow, setControlPinHigh, help):");
+  }
 }
 
-void loop() {  
-  /*
-  digitalWrite(0, HIGH);
-  Serial1.write("High"); 
-  Serial.write("High"); 
-  delay(1000);
+void loop() {
+  
+  // Handle incoming commands from Bluetooth Serial
+  static String inputCommand = "";
 
-  Serial1.write("Low"); 
-  Serial.write("Low"); 
-  digitalWrite(0, LOW);
-  delay(1000);
-*/
-
-/* Note: When sending AT commands, you must enter a carriage return and line feed. AT commands can only take effect when the module is not connected. Once the blue
-The Bluetooth module is connected to the device, and the Bluetooth module enters the data transparent transmission mode)
-Command details
-(AT commands are case-sensitive and end with carriage return and line feed characters: \r\n) 
-
-https://forum.arduino.cc/t/things-i-learned-about-hc-05-and-arduino/881035/9
-*/
-
-  // The code below allows for commands and messages to be sent from COMPUTER (serial monitor) -> HC-05
-  if (Serial.available()) // Keep reading from Arduino Serial Monitor
+if (mode == CONFIG_MODE_VALUE) {
+  if (USBSerial.available()) 
   { 
-    char ch = Serial.read();
+    
+    char ch = USBSerial.read();
+    // This is specific to the HC-05 that it needs just a newline translated to a carrage return and then newline.
+    //TODO: you may need to drop any carrage returns that are sent
     if(ch == 10)
     {
-    Serial1.write(13);  
-    Serial1.write(10);
+    BluetoothSerial.write(13);  
+    BluetoothSerial.write(10);
     }
     else
     {
-      Serial1.write(ch);
+      BluetoothSerial.write(ch);
     }
   }
 
-
-
-  // 
-  if (Serial1.available()) // Keep reading from HC-05 and send to Arduino
-  { 
-    Serial.write(Serial1.read()); // Serial Monitor
+  // Transfer data from HC-05 to the USB serial
+  if (BluetoothSerial.available()) {
+    USBSerial.write(BluetoothSerial.read());
+  }
+}
+else   // if in Bluetooth serial data mode
+{
+  // Transfer data from USB to HC-05
+  if (USBSerial.available()) {
+    BluetoothSerial.write(USBSerial.read());
   }
 
- //delay (1000);
- //Serial1.write("AT");
- //Serial1.write(13);
- //Serial1.write(10);
- /*
- When entering AT mode , some commands known as ‘Standard protocol’, ie..AT+UART, AT+URT? or AT+NAME? will not bring back a response. The only commands that brought back a response was AT+NAME, AT+BAUD, AT+ROLE, AT+ADDR, AT+PIN. I was able to change one device name typing AT+NAME[EXAMPLE] then the request to verify confirmed EXAMPLE. If I typed ie… AT+NAME=[EXAMPLE], it would confirm name was ‘EXAMPLE’; Expected to see one board with a ROLE value = 1. Both are 0.
-Zero information on company website to address programming protocols. Have not gotten far enough to discover I they really talk to each other as both ADDR are different.
+  if (BluetoothSerial.available()) {
+    char ch = BluetoothSerial.read();
+    BluetoothSerial.write(ch); // echo character back
+    if (ch == '\n' || ch == '\r') {
+      if (inputCommand.length() > 0) {
+        handleCommand(inputCommand);
+        inputCommand = ""; // Reset command string after handling
+      }
+    }  else if (!isspace(ch)) { // Skip whitespace
+      inputCommand += ch; // Accumulate characters into command
+    }
+  }
 
-The bind command does not work. The default buad rate is 4800, not 38400. The set buad rate command does not work unless you add an extra comma to the end of your statement. The bind command flat out does not work. The RX and TX keys appear to be wired backwards. AT commands won't work unless the RX and TX pins are wired the wrong way (RX to RX and TX to TX). I cannot find anything to tell me what any of the five or six observed blinking patterns mean.
-
-*/
+}
 
 
+}
+
+void handleCommand(String command) {
+  if (command == "setControlPinLow") {
+    setControlPinLow();
+  } else if (command == "setControlPinHigh") {
+    setControlPinHigh();
+  } else if (command == "help") {
+    help();
+  } else {
+    USBSerial.print("Invalid command: ");
+    USBSerial.println(command);
+
+    BluetoothSerial.print("Invalid command: ");
+    BluetoothSerial.println(command);
+  }
+}
+
+void setControlPinLow() {
+  digitalWrite(CONTROL_PIN, LOW);
+  USBSerial.print("Set Control Pin (");
+  USBSerial.print(CONTROL_PIN);
+  USBSerial.println(") Low.");
+
+  BluetoothSerial.print("Set Control Pin (");
+  BluetoothSerial.print(CONTROL_PIN);
+  BluetoothSerial.println(") Low.");
+}
+
+void setControlPinHigh() {
+  digitalWrite(CONTROL_PIN, HIGH);
+  USBSerial.print("Set Control Pin (");
+  USBSerial.print(CONTROL_PIN);
+  USBSerial.println(") High.");
+
+  BluetoothSerial.print("Set Control Pin (");
+  BluetoothSerial.print(CONTROL_PIN);
+  BluetoothSerial.println(") High.");
+}
+
+void help() {
+  USBSerial.println("Valid commands: setControlPinLow, setControlPinHigh, help");
+  BluetoothSerial.println("Valid commands: setControlPinLow, setControlPinHigh, help");
 }

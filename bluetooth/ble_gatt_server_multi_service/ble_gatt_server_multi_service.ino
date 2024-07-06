@@ -43,27 +43,27 @@ static constexpr byte IO_TEST_PIN = 0;
 //
 BLEByteCharacteristic Ramp01MinimumValue("b5720d32-9514-11ed-985d-7300cdba6b00", BLERead | BLEWrite);
 BLEByteCharacteristic Ramp01MaximumValue("b5720d32-9514-11ed-985d-7300cdba6b01", BLERead | BLEWrite);
-BLEByteCharacteristic Ramp01CurrentValue("b5720d32-9514-11ed-985d-7300cdba6b02", BLERead );
+BLEByteCharacteristic Ramp01CurrentValue("b5720d32-9514-11ed-985d-7300cdba6b02", BLERead | BLENotify);
 BLEByteCharacteristic Ramp01Command("b5720d32-9514-11ed-985d-7300cdba6b03", BLEWrite);
-BLEByteCharacteristic Ramp01CommandStatus("b5720d32-9514-11ed-985d-7300cdba6b04", BLERead | BLENotify );
-BLEByteCharacteristic Ramp01Status("b5720d32-9514-11ed-985d-7300cdba6b05", BLERead | BLENotify );
-BLEByteCharacteristic Ramp01StepTime("b5720d32-9514-11ed-985d-7300cdba6b06", BLERead | BLEWrite );
+BLEByteCharacteristic Ramp01CommandStatus("b5720d32-9514-11ed-985d-7300cdba6b04", BLERead | BLENotify);
+BLEByteCharacteristic Ramp01Status("b5720d32-9514-11ed-985d-7300cdba6b05", BLERead | BLENotify);
+BLEByteCharacteristic Ramp01StepTime("b5720d32-9514-11ed-985d-7300cdba6b06", BLERead | BLEWrite);
 
 
 BLEByteCharacteristic Ramp02MinimumValue("b5720d32-9514-11ed-985d-7300cdba6b00", BLERead | BLEWrite);
 BLEByteCharacteristic Ramp02MaximumValue("b5720d32-9514-11ed-985d-7300cdba6b01", BLERead | BLEWrite);
-BLEByteCharacteristic Ramp02CurrentValue("b5720d32-9514-11ed-985d-7300cdba6b02", BLERead );
+BLEByteCharacteristic Ramp02CurrentValue("b5720d32-9514-11ed-985d-7300cdba6b02", BLERead | BLENotify);
 BLEByteCharacteristic Ramp02Command("b5720d32-9514-11ed-985d-7300cdba6b03", BLEWrite);
-BLEByteCharacteristic Ramp02CommandStatus("b5720d32-9514-11ed-985d-7300cdba6b04", BLERead | BLENotify );
-BLEByteCharacteristic Ramp02Status("b5720d32-9514-11ed-985d-7300cdba6b05", BLERead | BLENotify );
-BLEByteCharacteristic Ramp02StepTime("b5720d32-9514-11ed-985d-7300cdba6b06", BLERead | BLEWrite );
+BLEByteCharacteristic Ramp02CommandStatus("b5720d32-9514-11ed-985d-7300cdba6b04", BLERead | BLENotify);
+BLEByteCharacteristic Ramp02Status("b5720d32-9514-11ed-985d-7300cdba6b05", BLERead | BLENotify);
+BLEByteCharacteristic Ramp02StepTime("b5720d32-9514-11ed-985d-7300cdba6b06", BLERead | BLEWrite);
 
 
 void setup() {
 Serial.begin(115200);
 
 // If running off battery without the USB cable connected the following line should be commented out
-// while (!Serial);  
+while (!Serial);  
 
 pinMode(LED_BUILTIN, OUTPUT);
 
@@ -98,7 +98,8 @@ BLE.addService(Ramp02ServiceByte);
 
 BLE.setAdvertisedService(Ramp01ServiceByte);
 // 1600*0.625 msec = 1 sec
-GAP.setAdvertisingInterval(1600);
+// 400*0.625 msec = 0.25 sec
+GAP.setAdvertisingInterval(400);
 
 BLE.advertise();
 Serial.print("Bluetooth device ");
